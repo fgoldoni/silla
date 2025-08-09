@@ -149,22 +149,40 @@ new class extends Component {
                 <!-- Upload -->
                 <flux:field>
                     <flux:input type="file" wire:model="file" label="FileToUpload" />
-                    <flux:error name="file" />
                 </flux:field>
 
                 <!-- Boutons -->
                 <div class="flex flex-col sm:flex-row gap-3">
+                    <!-- Bouton Clear -->
                     <button type="button"
                             wire:click="clear"
+                            wire:loading.attr="disabled"
+                            wire:target="clear"
                             class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 py-2 text-sm font-medium transition">
-                        <flux:icon.x-mark class="size-5" />
+        <span wire:loading.remove wire:target="clear">
+            <flux:icon.x-mark class="size-5" />
+        </span>
+                        <span wire:loading wire:target="clear">
+            <flux:icon.loading class="size-5" />
+        </span>
                         Clear
                     </button>
 
-                    <flux:button type="submit" variant="primary" icon="arrow-up-tray" class="flex-1">
+                    <!-- Bouton Send -->
+                    <button type="submit"
+                            wire:loading.attr="disabled"
+                            wire:target="send"
+                            class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 text-sm font-medium rounded-lg transition">
+        <span wire:loading.remove wire:target="send">
+            <flux:icon.arrow-up-tray class="size-5" />
+        </span>
+                        <span wire:loading wire:target="send">
+            <flux:icon.loading class="size-5" />
+        </span>
                         Send
-                    </flux:button>
+                    </button>
                 </div>
+
             </form>
         </div>
 
@@ -173,8 +191,17 @@ new class extends Component {
             <!-- Filtres -->
             <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-lg p-4 sm:p-6">
                 <div class="flex flex-col sm:flex-row gap-3 items-center">
-                    <flux:input wire:model.debounce.500ms="search" placeholder="Search..." icon="magnifying-glass" class="flex-1" />
-                    <flux:select wire:model="scope" class="w-full sm:w-auto">
+                    <flux:input
+                        wire:model.live.debounce.300ms="search"
+                        placeholder="Search..."
+                        icon="magnifying-glass"
+                        class="flex-1"
+                    />
+
+                    <flux:select
+                        wire:model.live="scope"
+                        class="w-full sm:w-auto"
+                    >
                         <option value="active">Actifs</option>
                         <option value="trashed">Supprimés</option>
                         <option value="all">Tous</option>
@@ -188,11 +215,11 @@ new class extends Component {
                     <thead class="bg-yellow-500 text-white">
                     <tr>
                         <th class="p-3 text-left">Champ1</th>
-                        <th class="p-3 text-center">Ch2</th>
-                        <th class="p-3 text-center">Ch3</th>
+                        <th class="p-3 text-center">Champ2</th>
+                        <th class="p-3 text-center">Champ3</th>
                         <th class="p-3 text-left">Champ4</th>
                         <th class="p-3 text-left">FileName</th>
-                        <th class="p-3 text-right">Actions</th>
+                        <th class="p-3"></th>
                     </tr>
                     </thead>
                     <tbody>
