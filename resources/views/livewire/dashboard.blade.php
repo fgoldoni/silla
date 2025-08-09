@@ -21,7 +21,7 @@ new class extends Component {
     public $file;
 
     public ?string $search = null;
-    public string $scope = 'active';
+    public string $scope = 'active'; // active|trashed|all
     public ?Document $selected = null;
 
     protected $rules = [
@@ -60,6 +60,38 @@ new class extends Component {
     public function select(string $id): void
     {
         $this->selected = Document::withTrashed()->find($id);
+    }
+
+    // === AJOUT : suppression logique ===
+    public function delete(string $id): void
+    {
+        $doc = Document::findOrFail($id);
+        $doc->delete();
+        if ($this->selected?->id === $id) $this->selected = null;
+
+        $this->dispatch('notify', 'Document supprimé (corbeille) 🗑️');
+        $this->resetPage();
+    }
+
+    // === AJOUT : restauration ===
+    public function restore(string $id): void
+    {
+        $doc = Document::onlyTrashed()->findOrFail($id);
+        $doc->restore();
+
+        $this->dispatch('notify', 'Document restauré ♻️');
+        $this->resetPage();
+    }
+
+    // === AJOUT : suppression définitive (et fichiers) via service ===
+    public function forceDelete(string $id, DocumentService $service): void
+    {
+        $doc = Document::withTrashed()->findOrFail($id);
+        $service->forceDelete($doc);
+        if ($this->selected?->id === $id) $this->selected = null;
+
+        $this->dispatch('notify', 'Document supprimé définitivement 🚨');
+        $this->resetPage();
     }
 
     #[Computed]
@@ -114,7 +146,7 @@ new class extends Component {
 
                 <flux:input wire:model.defer="champ4" label="Free Text" placeholder="Champ 4" clearable />
 
-                <!-- Bloc upload -->
+                <!-- Upload -->
                 <flux:field>
                     <flux:input type="file" wire:model="file" label="FileToUpload" />
                     <flux:error name="file" />
@@ -136,7 +168,7 @@ new class extends Component {
             </form>
         </div>
 
-        <!-- Colonne droite : Liste et détails -->
+        <!-- Colonne droite : Liste + Détails -->
         <div class="space-y-6">
             <!-- Filtres -->
             <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-lg p-4 sm:p-6">
@@ -160,26 +192,55 @@ new class extends Component {
                         <th class="p-3 text-center">Ch3</th>
                         <th class="p-3 text-left">Champ4</th>
                         <th class="p-3 text-left">FileName</th>
-                        <th class="p-3"></th>
+                        <th class="p-3 text-right">Actions</th>
                     </tr>
                     </thead>
                     <tbody>
                     @forelse($this->documents as $doc)
-                        <tr class="odd:bg-zinc-50 dark:odd:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
-                            wire:click="select('{{ $doc->id }}')" role="button">
-                            <td class="p-3">{{ $doc->champ1 }}</td>
+                        <tr class="odd:bg-zinc-50 dark:odd:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
+                            <td class="p-3">
+                                <button class="underline" wire:click="select('{{ $doc->id }}')">{{ $doc->champ1 }}</button>
+                            </td>
                             <td class="p-3 text-center">{{ $doc->champ2 }}</td>
                             <td class="p-3 text-center">{{ $doc->champ3 }}</td>
                             <td class="p-3">{{ $doc->champ4 }}</td>
                             <td class="p-3">{{ $doc->file_name }}</td>
                             <td class="p-3 text-right">
-                                @if(!$doc->trashed())
-                                    <a class="underline text-yellow-700 dark:text-yellow-400"
-                                       href="{{ Storage::disk(config('documents.disk','public'))->url($doc->file_path) }}"
-                                       target="_blank">
-                                        Download-Link
-                                    </a>
-                                @endif
+                                <div class="inline-flex items-center gap-2">
+                                    @if(!$doc->trashed())
+                                        <a class="underline text-yellow-700 dark:text-yellow-400"
+                                           href="{{ Storage::disk(config('documents.disk','public'))->url($doc->file_path) }}"
+                                           target="_blank">
+                                            Download
+                                        </a>
+
+                                        <!-- Supprimer (soft delete) -->
+                                        <button
+                                            wire:click="delete('{{ $doc->id }}')"
+                                            wire:confirm="Supprimer ce document ?"
+                                            class="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                                            <flux:icon.trash class="size-4" />
+                                            <span class="sr-only sm:not-sr-only">Delete</span>
+                                        </button>
+                                    @else
+                                        <!-- Restaurer -->
+                                        <button
+                                            wire:click="restore('{{ $doc->id }}')"
+                                            class="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                                            <flux:icon.arrow-path class="size-4" />
+                                            <span class="sr-only sm:not-sr-only">Restore</span>
+                                        </button>
+
+                                        <!-- Suppression définitive -->
+                                        <button
+                                            wire:click="forceDelete('{{ $doc->id }}')"
+                                            wire:confirm="Suppression DÉFINITIVE ? Cette action est irréversible."
+                                            class="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-900/30 text-rose-600 dark:text-rose-400">
+                                            <flux:icon.x-mark class="size-4" />
+                                            <span class="sr-only sm:not-sr-only">Force delete</span>
+                                        </button>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @empty
