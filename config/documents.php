@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'disk' => env('DOCUMENTS_DISK', env('FILESYSTEM_DISK', 'public')),
+    'disk' => env('DOCUMENTS_DISK', env('FILESYSTEM_DISK', 'local')),
     'max_size' => env('DOCUMENTS_MAX_SIZE', 20 * 1024 * 1024), // 20 Mo
     'allowed_mimes' => [
         'application/pdf',
