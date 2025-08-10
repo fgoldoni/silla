@@ -284,7 +284,7 @@ new class extends Component {
                                 </button>
                             </td>
                             <td class="p-3">
-                                <span class="font-mono">{{ __('version:') }} {{ $doc->version }}</span>
+                                <span class="font-mono">{{ 'v:' . $doc->version }}</span>
                             </td>
                             <td class="p-3">
                                 <button class="underline cursor-pointer" wire:click="select('{{ $doc->id }}')">
@@ -292,7 +292,9 @@ new class extends Component {
                                 </button>
                             </td>
                             <td class="p-3">
-                                <span class="truncate">{{ $doc->user?->name ?? '—' }}</span>
+                                <button class="underline cursor-pointer" wire:click="select('{{ $doc->id }}')">
+                                    <span class="truncate">{{ $doc->user?->name ?? '—' }}({{ $doc->user?->email ?? '—' }})</span>
+                                </button>
                             </td>
                             <td class="p-3">
                                 <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium {{ $statusClasses }}">
