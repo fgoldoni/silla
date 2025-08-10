@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('champ3')->nullable(); // select
             $table->string('champ4')->nullable();
 
-            $table->text('commentaire')->nullable();
+            $table->longText('commentaire')->nullable();
 
             $table->string('file_name');
             $table->string('file_path'); // chemin relatif dans le disque
