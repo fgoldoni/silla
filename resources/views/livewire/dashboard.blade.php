@@ -59,11 +59,17 @@ new class extends Component {
 
     public function select(string $id): void
     {
-        $userId = auth()->id();
+        $viewer = auth()->user();
+        $isSuperAdmin = $viewer && (method_exists($viewer, 'isSuperAdmin')
+                ? (bool) $viewer->isSuperAdmin()
+                : (bool) ($viewer->isSuperAdmin ?? false));
 
-        $this->selected = Document::withTrashed()
-            ->ownedBy($userId)
-            ->findOrFail($id);
+        $q = Document::withTrashed();
+        if (!$isSuperAdmin) {
+            $q->ownedBy($viewer?->id);
+        }
+
+        $this->selected = $q->findOrFail($id);
     }
 
     public function delete(string $id, DocumentService $service): void
@@ -104,21 +110,41 @@ new class extends Component {
         $scope = strtolower(trim((string) $this->scope));
         if (!in_array($scope, $allowed, true)) $scope = 'active';
 
-        $userId = auth()->id();
+        $viewer = auth()->user();
+        $isSuperAdmin = $viewer && (method_exists($viewer, 'isSuperAdmin')
+                ? (bool) $viewer->isSuperAdmin()
+                : (bool) ($viewer->isSuperAdmin ?? false));
 
-        if ($scope === 'trashed')      $q = Document::onlyTrashed()->ownedBy($userId);
-        elseif ($scope === 'all')      $q = Document::withTrashed()->ownedBy($userId);
-        else                           $q = Document::query()->ownedBy($userId);
+        // Base query selon le scope
+        if ($scope === 'trashed')      $q = Document::onlyTrashed();
+        elseif ($scope === 'all')      $q = Document::withTrashed();
+        else                           $q = Document::query();
 
-        if (!empty($this->search)) {
-            $s = '%'.$this->search.'%';
-            $q->where(function ($w) use ($s) {
-                $w->where('champ1','like',$s)
-                    ->orWhere('uid','like',$s)
-                    ->orWhere('champ2','like',$s)
-                    ->orWhere('champ3','like',$s)
-                    ->orWhere('champ4','like',$s)
-                    ->orWhere('file_name','like',$s);
+        // Accès : super admin = tout, sinon seulement ses docs
+        if (!$isSuperAdmin) {
+            $q->ownedBy($viewer?->id);
+        }
+
+        // Eager-load de l'utilisateur pour l'affichage de son nom
+        $q->with('user');
+
+        // Recherche élargie (champs + utilisateur)
+        if (filled($this->search)) {
+            $term    = trim($this->search);
+            $sLike   = '%'.$term.'%';                     // pour uid / valeurs non textuelles
+            $sLower  = '%'.mb_strtolower($term).'%';      // pour comparaisons insensibles à la casse
+
+            $q->where(function ($w) use ($sLike, $sLower) {
+                $w->whereRaw('LOWER(champ1) LIKE ?', [$sLower])
+                    ->orWhere('uid', 'like', $sLike)
+                    ->orWhereRaw('LOWER(champ2) LIKE ?', [$sLower])
+                    ->orWhereRaw('LOWER(champ3) LIKE ?', [$sLower])
+                    ->orWhereRaw('LOWER(champ4) LIKE ?', [$sLower])
+                    ->orWhereRaw('LOWER(file_name) LIKE ?', [$sLower])
+                    ->orWhereHas('user', function ($u) use ($sLower) {
+                        $u->whereRaw('LOWER(name) LIKE ?', [$sLower])
+                            ->orWhereRaw('LOWER(email) LIKE ?', [$sLower]);
+                    });
             });
         }
 
@@ -217,8 +243,8 @@ new class extends Component {
                         wire:model.live.debounce.300ms="search"
                         placeholder="{{ __('Search…') }}"
                         icon="magnifying-glass"
-                        class="flex-1"
-                    />
+                        class="flex-1
+                    " />
                     <flux:select
                         wire:model.live="scope"
                         class="w-full sm:w-auto"
@@ -230,7 +256,7 @@ new class extends Component {
                 </div>
             </div>
 
-            <!-- Table (ID, UID, Field1, Status, Actions) -->
+            <!-- Table (ID, UID, Field1, User, Status, Actions) -->
             <div class="overflow-x-auto rounded-2xl border dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
                 <table class="min-w-full text-sm">
                     <thead class="bg-yellow-500 text-white">
@@ -238,6 +264,7 @@ new class extends Component {
                         <th class="p-3 text-left">{{ __('ID') }}</th>
                         <th class="p-3 text-left">{{ __('Version') }}</th>
                         <th class="p-3 text-left">{{ __('Field 1') }}</th>
+                        <th class="p-3 text-left">{{ __('User') }}</th>
                         <th class="p-3 text-left">{{ __('Status') }}</th>
                         <th class="p-3 text-right">{{ __('Actions') }}</th>
                     </tr>
@@ -265,9 +292,12 @@ new class extends Component {
                                 </button>
                             </td>
                             <td class="p-3">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium {{ $statusClasses }}">
-                                        {{ $statusText }}
-                                    </span>
+                                <span class="truncate">{{ $doc->user?->name ?? '—' }}</span>
+                            </td>
+                            <td class="p-3">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium {{ $statusClasses }}">
+                                    {{ $statusText }}
+                                </span>
                             </td>
                             <td class="p-3 text-right">
                                 <div class="inline-flex items-center gap-2">
@@ -320,7 +350,7 @@ new class extends Component {
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="p-4 text-center text-zinc-500 dark:text-zinc-400">
+                            <td colspan="6" class="p-4 text-center text-zinc-500 dark:text-zinc-400">
                                 {{ __('No documents found') }}
                             </td>
                         </tr>
@@ -457,8 +487,7 @@ new class extends Component {
                                 @if(!empty($tags))
                                     <div class="flex flex-wrap gap-2">
                                         @foreach($tags as $tag)
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs bg-zinc-100 dark:bg-zinc-8
-00">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs bg-zinc-100 dark:bg-zinc-800">
                                                 {{ is_string($tag) ? $tag : json_encode($tag, JSON_UNESCAPED_UNICODE) }}
                                             </span>
                                         @endforeach
@@ -485,7 +514,7 @@ new class extends Component {
                         <!-- Relations -->
                         <div>
                             <dt class="opacity-60">{{ __('User') }}</dt>
-                            <dd class="mt-1">{{ $selected->user_id ?? '—' }}</dd>
+                            <dd class="mt-1">{{ $selected->user?->name ?? '—' }} <span class="opacity-60">(#{{ $selected->user_id ?? '—' }})</span></dd>
                         </div>
                         <div>
                             <dt class="opacity-60">{{ __('Team') }}</dt>
