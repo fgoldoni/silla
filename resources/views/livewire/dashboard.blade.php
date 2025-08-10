@@ -52,7 +52,7 @@ new class extends Component {
         ], $this->file);
 
         $this->clear();
-        $this->dispatch('notify', 'Document enregistré avec succès ✅');
+        $this->dispatch('notify', __('Document saved successfully ✅'));
         $this->selected = $doc;
         $this->resetPage();
     }
@@ -73,7 +73,7 @@ new class extends Component {
 
         if ($this->selected?->id === $id) $this->selected = null;
 
-        $this->dispatch('notify', 'Document supprimé (corbeille) 🗑️');
+        $this->dispatch('notify', __('Document moved to trash 🗑️'));
         $this->resetPage();
     }
 
@@ -82,7 +82,7 @@ new class extends Component {
         $doc = Document::onlyTrashed()->findOrFail($id);
         $service->restore($doc);
 
-        $this->dispatch('notify', 'Document restauré ♻️');
+        $this->dispatch('notify', __('Document restored ♻️'));
         $this->resetPage();
     }
 
@@ -93,7 +93,7 @@ new class extends Component {
 
         if ($this->selected?->id === $id) $this->selected = null;
 
-        $this->dispatch('notify', 'Document supprimé définitivement 🚨');
+        $this->dispatch('notify', __('Document permanently deleted 🚨'));
         $this->resetPage();
     }
 
@@ -129,37 +129,52 @@ new class extends Component {
 
 <div class="p-4 sm:p-6">
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Colonne gauche : Formulaire -->
+        <!-- Left column: Form -->
         <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-lg p-4 sm:p-6">
             <form wire:submit.prevent="send" class="space-y-6">
-                <flux:input wire:model.defer="champ1" label="Free Text" placeholder="Champ 1" clearable />
+                <flux:input
+                    wire:model.defer="champ1"
+                    label="{{ __('Free text') }}"
+                    placeholder="{{ __('Field 1') }}"
+                    clearable
+                />
 
-                <flux:select wire:model.defer="champ2" label="Drop-Downlist">
-                    <option value="">Choose</option>
+                <flux:select wire:model.defer="champ2" label="{{ __('Drop-down list') }}">
+                    <option value="">{{ __('Choose') }}</option>
                     @foreach(\App\Models\Option::forChamp2()->get() as $opt)
                         <option value="{{ $opt->name }}">{{ $opt->name }}</option>
                     @endforeach
                 </flux:select>
 
-                <flux:select wire:model.defer="champ3" label="Drop-Downlist">
-                    <option value="">Choose</option>
+                <flux:select wire:model.defer="champ3" label="{{ __('Drop-down list') }}">
+                    <option value="">{{ __('Choose') }}</option>
                     @foreach(\App\Models\Option::forChamp3()->get() as $opt)
                         <option value="{{ $opt->name }}">{{ $opt->name }}</option>
                     @endforeach
                 </flux:select>
 
-                <flux:textarea wire:model.defer="commentaire" label="Commentaire multiple line" placeholder="Commentaire" rows="4" />
+                <flux:textarea
+                    wire:model.defer="commentaire"
+                    label="{{ __('Multi-line comment') }}"
+                    placeholder="{{ __('Comment') }}"
+                    rows="4"
+                />
 
-                <flux:input wire:model.defer="champ4" label="Free Text" placeholder="Champ 4" clearable />
+                <flux:input
+                    wire:model.defer="champ4"
+                    label="{{ __('Free text') }}"
+                    placeholder="{{ __('Field 4') }}"
+                    clearable
+                />
 
-                <flux:input type="file" wire:model="file" label="FileToUpload" />
+                <flux:input type="file" wire:model="file" label="{{ __('File to upload') }}" />
 
-                <!-- indicateur d'upload côté UI (optionnel mais utile) -->
+                <!-- upload indicator -->
                 <div class="text-xs text-zinc-500 mt-1" wire:loading wire:target="file">
-                    Uploading... <flux:icon.loading class="inline size-4" />
+                    {{ __('Uploading...') }} <flux:icon.loading class="inline size-4" />
                 </div>
 
-                <!-- Boutons -->
+                <!-- Buttons -->
                 <div class="flex flex-col sm:flex-row gap-3">
                     <!-- Clear -->
                     <button type="button"
@@ -173,7 +188,7 @@ new class extends Component {
                         <span wire:loading wire:target="clear">
                             <flux:icon.loading class="size-5" />
                         </span>
-                        Clear
+                        {{ __('Clear') }}
                     </button>
 
                     <!-- Send -->
@@ -181,26 +196,26 @@ new class extends Component {
                             wire:loading.attr="disabled"
                             wire:target="file,send"
                             class="flex-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 text-sm font-medium transition">
-                            <span wire:loading.remove wire:target="send">
-                                <flux:icon.arrow-up-tray class="size-5" />
-                            </span>
-                                            <span wire:loading wire:target="send">
-                                <flux:icon.loading class="size-5" />
-                            </span>
-                        Send
+                        <span wire:loading.remove wire:target="send">
+                            <flux:icon.arrow-up-tray class="size-5" />
+                        </span>
+                        <span wire:loading wire:target="send">
+                            <flux:icon.loading class="size-5" />
+                        </span>
+                        {{ __('Send') }}
                     </button>
                 </div>
             </form>
         </div>
 
-        <!-- Colonne droite : Liste + Détails -->
+        <!-- Right column: List + Details -->
         <div class="space-y-6">
-            <!-- Filtres -->
+            <!-- Filters -->
             <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-lg p-4 sm:p-6">
                 <div class="flex flex-col sm:flex-row gap-3 items-center">
                     <flux:input
                         wire:model.live.debounce.300ms="search"
-                        placeholder="Search..."
+                        placeholder="{{ __('Search…') }}"
                         icon="magnifying-glass"
                         class="flex-1"
                     />
@@ -208,29 +223,29 @@ new class extends Component {
                         wire:model.live="scope"
                         class="w-full sm:w-auto"
                     >
-                        <option value="active">Actifs</option>
-                        <option value="trashed">Supprimés</option>
-                        <option value="all">Tous</option>
+                        <option value="active">{{ __('Active') }}</option>
+                        <option value="trashed">{{ __('Deleted') }}</option>
+                        <option value="all">{{ __('All') }}</option>
                     </flux:select>
                 </div>
             </div>
 
-            <!-- Table (ID, UID, Champ1, Statut, Actions) -->
+            <!-- Table (ID, UID, Field1, Status, Actions) -->
             <div class="overflow-x-auto rounded-2xl border dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
                 <table class="min-w-full text-sm">
                     <thead class="bg-yellow-500 text-white">
                     <tr>
-                        <th class="p-3 text-left">ID</th>
-                        <th class="p-3 text-left">VERSION</th>
-                        <th class="p-3 text-left">Champ1</th>
-                        <th class="p-3 text-left">Statut</th>
-                        <th class="p-3 text-right">Actions</th>
+                        <th class="p-3 text-left">{{ __('ID') }}</th>
+                        <th class="p-3 text-left">{{ __('Version') }}</th>
+                        <th class="p-3 text-left">{{ __('Field 1') }}</th>
+                        <th class="p-3 text-left">{{ __('Status') }}</th>
+                        <th class="p-3 text-right">{{ __('Actions') }}</th>
                     </tr>
                     </thead>
                     <tbody>
                     @forelse($this->documents as $doc)
                         @php
-                            $statusText = $doc->trashed() ? 'Supprimé' : 'Actif';
+                            $statusText = $doc->trashed() ? __('Deleted') : __('Active');
                             $statusClasses = $doc->trashed()
                                 ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
                                 : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
@@ -242,7 +257,7 @@ new class extends Component {
                                 </button>
                             </td>
                             <td class="p-3">
-                                <span class="font-mono">version: {{ $doc->version }}</span>
+                                <span class="font-mono">{{ __('version:') }} {{ $doc->version }}</span>
                             </td>
                             <td class="p-3">
                                 <button class="underline cursor-pointer" wire:click="select('{{ $doc->id }}')">
@@ -250,9 +265,9 @@ new class extends Component {
                                 </button>
                             </td>
                             <td class="p-3">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium {{ $statusClasses }}">
-                                    {{ $statusText }}
-                                </span>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium {{ $statusClasses }}">
+                                        {{ $statusText }}
+                                    </span>
                             </td>
                             <td class="p-3 text-right">
                                 <div class="inline-flex items-center gap-2">
@@ -261,7 +276,7 @@ new class extends Component {
                                             <a class="underline text-yellow-700 dark:text-yellow-400"
                                                href="{{ Storage::disk(config('documents.disk', config('filesystems.default')))->url($doc->file_path) }}"
                                                target="_blank">
-                                                Download
+                                                {{ __('Download') }}
                                             </a>
                                         @endif
                                     @endcan
@@ -270,10 +285,10 @@ new class extends Component {
                                         @if(!$doc->trashed())
                                             <button
                                                 wire:click="delete('{{ $doc->id }}')"
-                                                wire:confirm="Supprimer ce document ?"
+                                                wire:confirm="{{ __('Delete this document?') }}"
                                                 class="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
                                                 <flux:icon.trash class="size-4" />
-                                                <span class="sr-only sm:not-sr-only">Delete</span>
+                                                <span class="sr-only sm:not-sr-only">{{ __('Delete') }}</span>
                                             </button>
                                         @endif
                                     @endcan
@@ -284,7 +299,7 @@ new class extends Component {
                                                 wire:click="restore('{{ $doc->id }}')"
                                                 class="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
                                                 <flux:icon.arrow-path class="size-4" />
-                                                <span class="sr-only sm:not-sr-only">Restore</span>
+                                                <span class="sr-only sm:not-sr-only">{{ __('Restore') }}</span>
                                             </button>
                                         @endif
                                     @endcan
@@ -293,10 +308,10 @@ new class extends Component {
                                         @if($doc->trashed())
                                             <button
                                                 wire:click="forceDelete('{{ $doc->id }}')"
-                                                wire:confirm="Suppression DÉFINITIVE ? Cette action est irréversible."
+                                                wire:confirm="{{ __('PERMANENT deletion? This action is irreversible.') }}"
                                                 class="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-900/30 text-rose-600 dark:text-rose-400">
                                                 <flux:icon.x-mark class="size-4" />
-                                                <span class="sr-only sm:not-sr-only">Force delete</span>
+                                                <span class="sr-only sm:not-sr-only">{{ __('Force delete') }}</span>
                                             </button>
                                         @endif
                                     @endcan
@@ -306,7 +321,7 @@ new class extends Component {
                     @empty
                         <tr>
                             <td colspan="5" class="p-4 text-center text-zinc-500 dark:text-zinc-400">
-                                Aucun document trouvé
+                                {{ __('No documents found') }}
                             </td>
                         </tr>
                     @endforelse
@@ -318,13 +333,12 @@ new class extends Component {
                 </div>
             </div>
 
-            <!-- Détails -->
-            <!-- Détails -->
+            <!-- Details -->
             <div class="bg-white dark:bg-zinc-900 rounded-2xl border dark:border-zinc-700 p-6">
                 @if($selected)
                     @php
                         $isTrashed = $selected->trashed();
-                        $statusText = $isTrashed ? 'Supprimé' : 'Actif';
+                        $statusText = $isTrashed ? __('Deleted') : __('Active');
                         $statusClasses = $isTrashed
                             ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
                             : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
@@ -342,81 +356,81 @@ new class extends Component {
                     @endphp
 
                     <div class="flex items-start justify-between gap-3 mb-4">
-                        <flux:heading size="md">Détails</flux:heading>
+                        <flux:heading size="md">{{ __('Details') }}</flux:heading>
 
                         <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium {{ $statusClasses }}">
-                {{ $statusText }}
-            </span>
+                            {{ $statusText }}
+                        </span>
                     </div>
 
                     <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                        <!-- Identifiants -->
+                        <!-- Identifiers -->
                         <div class="sm:col-span-1">
-                            <dt class="opacity-60">UID (numérique)</dt>
+                            <dt class="opacity-60">{{ __('UID (numeric)') }}</dt>
                             <dd class="mt-1">
                                 <flux:input value="{{ $selected->uid }}" readonly copyable class="font-mono" />
                             </dd>
                         </div>
                         <div class="sm:col-span-1">
-                            <dt class="opacity-60">ULID</dt>
+                            <dt class="opacity-60">{{ __('ULID') }}</dt>
                             <dd class="mt-1">
                                 <flux:input value="{{ $selected->id }}" readonly copyable class="font-mono" />
                             </dd>
                         </div>
 
-                        <!-- Champs fonctionnels -->
+                        <!-- Functional fields -->
                         <div>
-                            <dt class="opacity-60">Champ 1</dt>
+                            <dt class="opacity-60">{{ __('Field 1') }}</dt>
                             <dd class="mt-1">{{ $selected->champ1 ?? '—' }}</dd>
                         </div>
                         <div>
-                            <dt class="opacity-60">Champ 2</dt>
+                            <dt class="opacity-60">{{ __('Field 2') }}</dt>
                             <dd class="mt-1">{{ $selected->champ2 ?? '—' }}</dd>
                         </div>
                         <div>
-                            <dt class="opacity-60">Champ 3</dt>
+                            <dt class="opacity-60">{{ __('Field 3') }}</dt>
                             <dd class="mt-1">{{ $selected->champ3 ?? '—' }}</dd>
                         </div>
                         <div>
-                            <dt class="opacity-60">Champ 4</dt>
+                            <dt class="opacity-60">{{ __('Field 4') }}</dt>
                             <dd class="mt-1">{{ $selected->champ4 ?? '—' }}</dd>
                         </div>
 
                         <div class="sm:col-span-2">
-                            <dt class="opacity-60">Commentaire</dt>
+                            <dt class="opacity-60">{{ __('Comment') }}</dt>
                             <dd class="mt-1 text-zinc-700 dark:text-zinc-200 whitespace-pre-line">
                                 {{ $selected->commentaire ?: '—' }}
                             </dd>
                         </div>
 
-                        <!-- Fichier -->
+                        <!-- File -->
                         <div>
-                            <dt class="opacity-60">Nom du fichier</dt>
+                            <dt class="opacity-60">{{ __('File name') }}</dt>
                             <dd class="mt-1">{{ $selected->file_name }}</dd>
                         </div>
                         <div>
-                            <dt class="opacity-60">Taille</dt>
+                            <dt class="opacity-60">{{ __('Size') }}</dt>
                             <dd class="mt-1">{{ $humanSize }}</dd>
                         </div>
                         <div>
-                            <dt class="opacity-60">MIME</dt>
+                            <dt class="opacity-60">{{ __('MIME') }}</dt>
                             <dd class="mt-1">{{ $selected->mime_type }}</dd>
                         </div>
                         <div>
-                            <dt class="opacity-60">Version</dt>
+                            <dt class="opacity-60">{{ __('Version') }}</dt>
                             <dd class="mt-1">v{{ $selected->version }}</dd>
                         </div>
 
                         <div class="sm:col-span-2">
-                            <dt class="opacity-60">Hash (SHA-256)</dt>
+                            <dt class="opacity-60">{{ __('Hash (SHA-256)') }}</dt>
                             <dd class="mt-1">
                                 <flux:input value="{{ $selected->hash }}" readonly copyable class="font-mono" />
                             </dd>
                         </div>
 
-                        <!-- Liens -->
+                        <!-- Links -->
                         <div class="sm:col-span-2">
-                            <dt class="opacity-60">Lien de téléchargement sécurisé (signé)</dt>
+                            <dt class="opacity-60">{{ __('Secure download link (signed)') }}</dt>
                             <dd class="mt-1">
                                 <flux:input icon="key" value="{{ $signedUrl }}" readonly copyable class="font-mono" />
                             </dd>
@@ -425,11 +439,11 @@ new class extends Component {
                         @can('download', $selected)
                             @unless($isTrashed)
                                 <div class="sm:col-span-2">
-                                    <dt class="opacity-60">Lien direct (disque)</dt>
+                                    <dt class="opacity-60">{{ __('Direct link (disk)') }}</dt>
                                     <dd class="mt-1 flex flex-col sm:flex-row sm:items-center gap-2">
                                         <flux:input value="{{ $directUrl }}" readonly copyable class="font-mono" />
                                         <a href="{{ $directUrl }}" target="_blank" class="underline text-yellow-700 dark:text-yellow-400">
-                                            Ouvrir
+                                            {{ __('Open') }}
                                         </a>
                                     </dd>
                                 </div>
@@ -438,14 +452,15 @@ new class extends Component {
 
                         <!-- Tags & Metadata -->
                         <div class="sm:col-span-2">
-                            <dt class="opacity-60">Tags</dt>
+                            <dt class="opacity-60">{{ __('Tags') }}</dt>
                             <dd class="mt-1">
                                 @if(!empty($tags))
                                     <div class="flex flex-wrap gap-2">
                                         @foreach($tags as $tag)
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs bg-zinc-100 dark:bg-zinc-800">
-                                    {{ is_string($tag) ? $tag : json_encode($tag, JSON_UNESCAPED_UNICODE) }}
-                                </span>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs bg-zinc-100 dark:bg-zinc-8
+00">
+                                                {{ is_string($tag) ? $tag : json_encode($tag, JSON_UNESCAPED_UNICODE) }}
+                                            </span>
                                         @endforeach
                                     </div>
                                 @else
@@ -455,54 +470,54 @@ new class extends Component {
                         </div>
 
                         <div class="sm:col-span-2">
-                            <dt class="opacity-60">Metadata</dt>
+                            <dt class="opacity-60">{{ __('Metadata') }}</dt>
                             <dd class="mt-1">
                                 @if(!empty($metadata))
                                     <pre class="max-h-48 overflow-auto rounded-lg bg-zinc-50 dark:bg-zinc-800 p-3 text-xs font-mono">
 {{ json_encode($metadata, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}
-                        </pre>
+                                    </pre>
                                 @else
                                     —
                                 @endif
                             </dd>
                         </div>
 
-                        <!-- Propriétés relationnelles -->
+                        <!-- Relations -->
                         <div>
-                            <dt class="opacity-60">Utilisateur</dt>
+                            <dt class="opacity-60">{{ __('User') }}</dt>
                             <dd class="mt-1">{{ $selected->user_id ?? '—' }}</dd>
                         </div>
                         <div>
-                            <dt class="opacity-60">Équipe</dt>
+                            <dt class="opacity-60">{{ __('Team') }}</dt>
                             <dd class="mt-1">{{ $selected->team_id ?? '—' }}</dd>
                         </div>
 
                         <!-- Timestamps -->
                         <div>
-                            <dt class="opacity-60">Créé le</dt>
+                            <dt class="opacity-60">{{ __('Created at') }}</dt>
                             <dd class="mt-1">
                                 {{ optional($selected->created_at)->format('Y-m-d H:i') ?? '—' }}
                             </dd>
                         </div>
                         <div>
-                            <dt class="opacity-60">Modifié le</dt>
+                            <dt class="opacity-60">{{ __('Updated at') }}</dt>
                             <dd class="mt-1">
                                 {{ optional($selected->updated_at)->format('Y-m-d H:i') ?? '—' }}
                             </dd>
                         </div>
                         <div class="sm:col-span-2">
-                            <dt class="opacity-60">Supprimé le</dt>
+                            <dt class="opacity-60">{{ __('Deleted at') }}</dt>
                             <dd class="mt-1">
                                 {{ optional($selected->deleted_at)->format('Y-m-d H:i') ?? '—' }}
                             </dd>
                         </div>
                     </dl>
                 @else
-                    <p class="text-zinc-500 dark:text-zinc-400">Sélectionne un élément du tableau pour afficher ses détails ici.</p>
+                    <p class="text-zinc-500 dark:text-zinc-400">
+                        {{ __('Select an item from the table to view its details here.') }}
+                    </p>
                 @endif
             </div>
-
-
         </div>
     </div>
 </div>
