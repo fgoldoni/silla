@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::create('documents', function (Blueprint $table) {
             $table->ulid('id')->primary();
+            $table->unsignedBigInteger('uid')->unique();
             $table->string('champ1')->nullable();
             $table->string('champ2')->nullable(); // select
             $table->string('champ3')->nullable(); // select

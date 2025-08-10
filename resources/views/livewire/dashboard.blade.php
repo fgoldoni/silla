@@ -59,35 +59,38 @@ new class extends Component {
 
     public function select(string $id): void
     {
-        $this->selected = Document::withTrashed()->find($id);
+        $userId = auth()->id();
+
+        $this->selected = Document::withTrashed()
+            ->ownedBy($userId)
+            ->findOrFail($id);
     }
 
-    // === AJOUT : suppression logique ===
-    public function delete(string $id): void
+    public function delete(string $id, DocumentService $service): void
     {
         $doc = Document::findOrFail($id);
-        $doc->delete();
+        $service->delete($doc);
+
         if ($this->selected?->id === $id) $this->selected = null;
 
         $this->dispatch('notify', 'Document supprimé (corbeille) 🗑️');
         $this->resetPage();
     }
 
-    // === AJOUT : restauration ===
-    public function restore(string $id): void
+    public function restore(string $id, DocumentService $service): void
     {
         $doc = Document::onlyTrashed()->findOrFail($id);
-        $doc->restore();
+        $service->restore($doc);
 
         $this->dispatch('notify', 'Document restauré ♻️');
         $this->resetPage();
     }
 
-    // === AJOUT : suppression définitive (et fichiers) via service ===
     public function forceDelete(string $id, DocumentService $service): void
     {
         $doc = Document::withTrashed()->findOrFail($id);
         $service->forceDelete($doc);
+
         if ($this->selected?->id === $id) $this->selected = null;
 
         $this->dispatch('notify', 'Document supprimé définitivement 🚨');
@@ -101,9 +104,11 @@ new class extends Component {
         $scope = strtolower(trim((string) $this->scope));
         if (!in_array($scope, $allowed, true)) $scope = 'active';
 
-        if ($scope === 'trashed')      $q = Document::onlyTrashed();
-        elseif ($scope === 'all')      $q = Document::withTrashed();
-        else                           $q = Document::query();
+        $userId = auth()->id();
+
+        if ($scope === 'trashed')      $q = Document::onlyTrashed()->ownedBy($userId);
+        elseif ($scope === 'all')      $q = Document::withTrashed()->ownedBy($userId);
+        else                           $q = Document::query()->ownedBy($userId);
 
         if (!empty($this->search)) {
             $s = '%'.$this->search.'%';
@@ -130,59 +135,60 @@ new class extends Component {
 
                 <flux:select wire:model.defer="champ2" label="Drop-Downlist">
                     <option value="">Choose</option>
-                    <option value="00">00</option>
-                    <option value="88">88</option>
-                    <option value="99">99</option>
+                    @foreach(\App\Models\Option::forChamp2()->get() as $opt)
+                        <option value="{{ $opt->name }}">{{ $opt->name }}</option>
+                    @endforeach
                 </flux:select>
 
                 <flux:select wire:model.defer="champ3" label="Drop-Downlist">
                     <option value="">Choose</option>
-                    <option value="00">00</option>
-                    <option value="88">88</option>
-                    <option value="99">99</option>
+                    @foreach(\App\Models\Option::forChamp3()->get() as $opt)
+                        <option value="{{ $opt->name }}">{{ $opt->name }}</option>
+                    @endforeach
                 </flux:select>
 
                 <flux:textarea wire:model.defer="commentaire" label="Commentaire multiple line" placeholder="Commentaire" rows="4" />
 
                 <flux:input wire:model.defer="champ4" label="Free Text" placeholder="Champ 4" clearable />
 
-                <!-- Upload -->
-                <flux:field>
-                    <flux:input type="file" wire:model="file" label="FileToUpload" />
-                </flux:field>
+                <flux:input type="file" wire:model="file" label="FileToUpload" />
+
+                <!-- indicateur d'upload côté UI (optionnel mais utile) -->
+                <div class="text-xs text-zinc-500 mt-1" wire:loading wire:target="file">
+                    Uploading... <flux:icon.loading class="inline size-4" />
+                </div>
 
                 <!-- Boutons -->
                 <div class="flex flex-col sm:flex-row gap-3">
-                    <!-- Bouton Clear -->
+                    <!-- Clear -->
                     <button type="button"
                             wire:click="clear"
                             wire:loading.attr="disabled"
                             wire:target="clear"
                             class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-4 py-2 text-sm font-medium transition">
-        <span wire:loading.remove wire:target="clear">
-            <flux:icon.x-mark class="size-5" />
-        </span>
+                        <span wire:loading.remove wire:target="clear">
+                            <flux:icon.x-mark class="size-5" />
+                        </span>
                         <span wire:loading wire:target="clear">
-            <flux:icon.loading class="size-5" />
-        </span>
+                            <flux:icon.loading class="size-5" />
+                        </span>
                         Clear
                     </button>
 
-                    <!-- Bouton Send -->
+                    <!-- Send -->
                     <button type="submit"
                             wire:loading.attr="disabled"
-                            wire:target="send"
-                            class="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 text-sm font-medium rounded-lg transition">
-        <span wire:loading.remove wire:target="send">
-            <flux:icon.arrow-up-tray class="size-5" />
-        </span>
-                        <span wire:loading wire:target="send">
-            <flux:icon.loading class="size-5" />
-        </span>
+                            wire:target="file,send"
+                            class="flex-1 inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 text-sm font-medium transition">
+                            <span wire:loading.remove wire:target="send">
+                                <flux:icon.arrow-up-tray class="size-5" />
+                            </span>
+                                            <span wire:loading wire:target="send">
+                                <flux:icon.loading class="size-5" />
+                            </span>
                         Send
                     </button>
                 </div>
-
             </form>
         </div>
 
@@ -197,7 +203,6 @@ new class extends Component {
                         icon="magnifying-glass"
                         class="flex-1"
                     />
-
                     <flux:select
                         wire:model.live="scope"
                         class="w-full sm:w-auto"
@@ -209,70 +214,97 @@ new class extends Component {
                 </div>
             </div>
 
-            <!-- Table -->
+            <!-- Table (ID, UID, Champ1, Statut, Actions) -->
             <div class="overflow-x-auto rounded-2xl border dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-sm">
                 <table class="min-w-full text-sm">
                     <thead class="bg-yellow-500 text-white">
                     <tr>
+                        <th class="p-3 text-left">ID</th>
+                        <th class="p-3 text-left">VERSION</th>
                         <th class="p-3 text-left">Champ1</th>
-                        <th class="p-3 text-center">Champ2</th>
-                        <th class="p-3 text-center">Champ3</th>
-                        <th class="p-3 text-left">Champ4</th>
-                        <th class="p-3 text-left">FileName</th>
-                        <th class="p-3"></th>
+                        <th class="p-3 text-left">Statut</th>
+                        <th class="p-3 text-right">Actions</th>
                     </tr>
                     </thead>
                     <tbody>
                     @forelse($this->documents as $doc)
+                        @php
+                            $statusText = $doc->trashed() ? 'Supprimé' : 'Actif';
+                            $statusClasses = $doc->trashed()
+                                ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300'
+                                : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+                        @endphp
                         <tr class="odd:bg-zinc-50 dark:odd:bg-zinc-800/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition">
                             <td class="p-3">
-                                <button class="underline" wire:click="select('{{ $doc->id }}')">{{ $doc->champ1 }}</button>
+                                <button class="underline cursor-pointer" wire:click="select('{{ $doc->id }}')">
+                                    {{ $doc->uid }}
+                                </button>
                             </td>
-                            <td class="p-3 text-center">{{ $doc->champ2 }}</td>
-                            <td class="p-3 text-center">{{ $doc->champ3 }}</td>
-                            <td class="p-3">{{ $doc->champ4 }}</td>
-                            <td class="p-3">{{ $doc->file_name }}</td>
+                            <td class="p-3">
+                                <span class="font-mono">version: {{ $doc->version }}</span>
+                            </td>
+                            <td class="p-3">
+                                <button class="underline cursor-pointer" wire:click="select('{{ $doc->id }}')">
+                                    {{ $doc->champ1 ?? '—' }}
+                                </button>
+                            </td>
+                            <td class="p-3">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium {{ $statusClasses }}">
+                                    {{ $statusText }}
+                                </span>
+                            </td>
                             <td class="p-3 text-right">
                                 <div class="inline-flex items-center gap-2">
-                                    @if(!$doc->trashed())
-                                        <a class="underline text-yellow-700 dark:text-yellow-400"
-                                           href="{{ Storage::disk(config('documents.disk','public'))->url($doc->file_path) }}"
-                                           target="_blank">
-                                            Download
-                                        </a>
+                                    @can('download', $doc)
+                                        @if(!$doc->trashed())
+                                            <a class="underline text-yellow-700 dark:text-yellow-400"
+                                               href="{{ Storage::disk(config('documents.disk', config('filesystems.default')))->url($doc->file_path) }}"
+                                               target="_blank">
+                                                Download
+                                            </a>
+                                        @endif
+                                    @endcan
 
-                                        <!-- Supprimer (soft delete) -->
-                                        <button
-                                            wire:click="delete('{{ $doc->id }}')"
-                                            wire:confirm="Supprimer ce document ?"
-                                            class="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                                            <flux:icon.trash class="size-4" />
-                                            <span class="sr-only sm:not-sr-only">Delete</span>
-                                        </button>
-                                    @else
-                                        <!-- Restaurer -->
-                                        <button
-                                            wire:click="restore('{{ $doc->id }}')"
-                                            class="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                                            <flux:icon.arrow-path class="size-4" />
-                                            <span class="sr-only sm:not-sr-only">Restore</span>
-                                        </button>
+                                    @can('delete', $doc)
+                                        @if(!$doc->trashed())
+                                            <button
+                                                wire:click="delete('{{ $doc->id }}')"
+                                                wire:confirm="Supprimer ce document ?"
+                                                class="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                                                <flux:icon.trash class="size-4" />
+                                                <span class="sr-only sm:not-sr-only">Delete</span>
+                                            </button>
+                                        @endif
+                                    @endcan
 
-                                        <!-- Suppression définitive -->
-                                        <button
-                                            wire:click="forceDelete('{{ $doc->id }}')"
-                                            wire:confirm="Suppression DÉFINITIVE ? Cette action est irréversible."
-                                            class="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-900/30 text-rose-600 dark:text-rose-400">
-                                            <flux:icon.x-mark class="size-4" />
-                                            <span class="sr-only sm:not-sr-only">Force delete</span>
-                                        </button>
-                                    @endif
+                                    @can('restore', $doc)
+                                        @if($doc->trashed())
+                                            <button
+                                                wire:click="restore('{{ $doc->id }}')"
+                                                class="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                                                <flux:icon.arrow-path class="size-4" />
+                                                <span class="sr-only sm:not-sr-only">Restore</span>
+                                            </button>
+                                        @endif
+                                    @endcan
+
+                                    @can('forceDelete', $doc)
+                                        @if($doc->trashed())
+                                            <button
+                                                wire:click="forceDelete('{{ $doc->id }}')"
+                                                wire:confirm="Suppression DÉFINITIVE ? Cette action est irréversible."
+                                                class="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-900/30 text-rose-600 dark:text-rose-400">
+                                                <flux:icon.x-mark class="size-4" />
+                                                <span class="sr-only sm:not-sr-only">Force delete</span>
+                                            </button>
+                                        @endif
+                                    @endcan
                                 </div>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="p-4 text-center text-zinc-500 dark:text-zinc-400">
+                            <td colspan="5" class="p-4 text-center text-zinc-500 dark:text-zinc-400">
                                 Aucun document trouvé
                             </td>
                         </tr>
@@ -315,11 +347,28 @@ new class extends Component {
                             <dt class="opacity-60">Version</dt>
                             <dd>v{{ $selected->version }}</dd>
                         </div>
+
+                        <!-- Lien de téléchargement signé -->
+                        <div class="sm:col-span-2">
+                            <dt class="opacity-60">Lien de téléchargement sécurisé</dt>
+                            <dd class="flex items-center gap-2 mt-1">
+                                @php
+                                    $signedUrl = URL::signedRoute('documents.download', ['document' => $selected->id]);
+                                @endphp
+                                <flux:input
+                                    icon="key"
+                                    value="{{ $signedUrl }}"
+                                    readonly
+                                    copyable
+                                />
+                            </dd>
+                        </div>
                     </dl>
                 @else
                     <p class="text-zinc-500 dark:text-zinc-400">Select on element in the Table, show details here</p>
                 @endif
             </div>
+
         </div>
     </div>
 </div>

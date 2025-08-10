@@ -58,4 +58,11 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function isSuperAdmin(): bool
+    {
+        return in_array($this->email, config('admin.emails', []), true);
+    }
+
+
 }
